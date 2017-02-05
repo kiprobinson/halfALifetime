@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<!--
+This app is completely self-contained. You don't even need a web server, you can just open the html
+file in a browser from your local machine and run it directly.
+
+@author Kip Robinson, https://github.com/kiprobinson
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="initial-scale=1, maximum-scale=1">
+<title>Half A Lifetime</title>
+<style type="text/css">
+/* Copied from: http://yui.yahooapis.com/3.18.1/build/cssreset/cssreset-min.css */
+html{color:#000;background:#FFF}body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td{margin:0;padding:0}table{border-collapse:collapse;border-spacing:0}fieldset,img{border:0}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal}ol,ul{list-style:none}caption,th{text-align:left}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal}q:before,q:after{content:''}abbr,acronym{border:0;font-variant:normal}sup{vertical-align:text-top}sub{vertical-align:text-bottom}input,textarea,select{font-family:inherit;font-size:inherit;font-weight:inherit;*font-size:100%}legend{color:#000}#yui3-css-stamp.cssreset{display:none}
+/* --- end Yahoo reset script --- */
+
+body {
+  font-family: Tahoma,Arial,sans-serif;
+  font-size: 1.2em;
+  font-weight: bold;
+  padding: 1px;
+  padding-right: 5px;
+  overflow: hidden;
+}
+input {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.clear {
+  clear: both;
+}
+h1 {
+  font-size: 3em;
+  font-weight: bold;
+  margin-bottom: 0.75em;
+}
+label {
+  display: block;
+  margin-top: 1.5em;
+}
+#result {
+  font-size: 3em;
+}
+#disclaimer {
+  margin-top: 3em;
+  font-size: 0.8em;
+  font-weight: normal;
+  font-style: italic;
+}
+</style>
+<script type="text/javascript">
+//<![CDATA[
+"use strict";
+document.addEventListener('DOMContentLoaded', function(event) { 
+  
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  
+  //shortcut to getElementById...
+  function el(name) { return document.getElementById(name); }
+  
+  //window.addEventListener('resize', resizeInput);
+  el('year').addEventListener('change', updateDays);
+  el('year').addEventListener('keyup', updateDays);
+  el('month').addEventListener('change', updateDays);
+  
+  el('year').addEventListener('change', updateResult);
+  el('year').addEventListener('keyup', updateResult);
+  el('month').addEventListener('change', updateResult);
+  el('day').addEventListener('change', updateResult);
+  
+  
+  function updateDays() {
+    var year = Number(el('year').value);
+    var month = Number(el('month').value);
+    var day = Number(el('day').value);
+    
+    if(isNaN(year) || year < 1000)
+      return;
+    
+    //0th day of next month === last day of current month
+    var d = new Date(year, month+1, 0);
+    var numDaysInMonth = new Date(year, month+1, 0).getDate();
+    var elDay = el('day');
+    
+    elDay.innerHTML = '';
+    for(var i = 1; i <= numDaysInMonth; i++)
+      elDay.options[elDay.options.length] = new Option(i);
+    
+    //restore previous selection
+    if(!isNaN(day))
+      elDay.value = (day > numDaysInMonth ? numDaysInMonth : day);
+    else
+      elDay.value = 1;
+  }
+  
+  
+  function updateResult() {
+    var year = Number(el('year').value);
+    var month = Number(el('month').value);
+    var day = Number(el('day').value);
+    if(isNaN(year) || year < 1000)
+      return;
+    
+    //use noon on birthdate to avoid weird DST issues
+    var birthdate = new Date(year, month, day, 12, 0, 0);
+    var today = new Date();
+    
+    //also use noon today. We shouldn't give a different answer depending on the time of day you run it.
+    today = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+    
+    var halfALifetimeAgo = new Date(birthdate/2 + today/2);
+    el('result').innerHTML = DAYS[halfALifetimeAgo.getDay()] + ', ' + MONTHS[halfALifetimeAgo.getMonth()] + ' ' + halfALifetimeAgo.getDate() + ', ' + halfALifetimeAgo.getFullYear();
+  }
+  
+});
+//]]> 
+</script>
+</head>
+<body>
+<h1>Half A Liftime Ago...</h1>
+<div>
+  What you were doing half a liftime ago?<br/>
+  Enter your birth date below to find out when that was!
+</div>
+<label for="year">Your Birth Date:</label>
+<div id="controls">
+  <input type="number" id="year" pattern="\d{4}" placeholder="YYYY" />
+  <select id="month">
+    <option value="0">Jan</option>
+    <option value="1">Feb</option>
+    <option value="2">Mar</option>
+    <option value="3">Apr</option>
+    <option value="4">May</option>
+    <option value="5">Jun</option>
+    <option value="6">Jul</option>
+    <option value="7">Aug</option>
+    <option value="8">Sep</option>
+    <option value="9">Oct</option>
+    <option value="10">Nov</option>
+    <option value="11">Dec</option>
+  </select>
+  <select id="day">
+    <option>1</option>
+    <option>2</option>
+    <option>3</option>
+    <option>4</option>
+    <option>5</option>
+    <option>6</option>
+    <option>7</option>
+    <option>8</option>
+    <option>9</option>
+    <option>10</option>
+    <option>11</option>
+    <option>12</option>
+    <option>13</option>
+    <option>14</option>
+    <option>15</option>
+    <option>16</option>
+    <option>17</option>
+    <option>18</option>
+    <option>19</option>
+    <option>20</option>
+    <option>21</option>
+    <option>22</option>
+    <option>23</option>
+    <option>24</option>
+    <option>25</option>
+    <option>26</option>
+    <option>27</option>
+    <option>28</option>
+    <option>29</option>
+    <option>30</option>
+    <option>31</option>
+  </select>
+</div>
+<label for="result>">Half a Lifetime Ago:</label>
+<div id="result"></div>
+<div id="disclaimer">
+  Not comfortable putting your birth date in some random website? I don't blame you!<br/>
+  You can <a href="//github.com/kiprobinson/halfALifetime">view the code on GitHub</a>.
+</div>
+</body>
+</html>
