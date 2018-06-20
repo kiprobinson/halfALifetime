@@ -28,6 +28,9 @@ input {
   padding-left: 2px;
   padding-right: 2px;
 }
+input, select {
+  border: 1px solid #888;
+}
 .clear {
   clear: both;
 }
@@ -40,81 +43,174 @@ label {
   display: block;
   margin-top: 1.5em;
 }
-#result {
-  font-size: 3em;
-}
 #disclaimer {
   margin-top: 3em;
   font-size: 0.8em;
   font-weight: normal;
   font-style: italic;
 }
+.birthdate.changed input, .birthdate.changed select {
+  background-color: #ff8;
+}
 </style>
 <script type="text/javascript">
 //<![CDATA[
 "use strict";
-document.addEventListener('DOMContentLoaded', function(event) { 
-  
+
+//shortcut to querySelectorAll...
+function sel(q) { return document.querySelectorAll(q); }
+
+
+var Birthdate = function(el, d) {
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   
-  //shortcut to getElementById...
-  function el(name) { return document.getElementById(name); }
+  let self = this;
+  let year = null;
+  let month = null;
+  let day = null;
+  let value = null;
+  let onChangeCallback = function(){};
+  let doCallback = function() { onChangeCallback(self) };
   
-  //window.addEventListener('resize', resizeInput);
-  el('year').addEventListener('change', updateDays);
-  el('year').addEventListener('keyup', updateDays);
-  el('month').addEventListener('change', updateDays);
+  //initialization code
+  if(!(d instanceof Date) || d.getFullYear() < 1000 || d.getFullYear() > 9999)
+    d = null;
   
-  el('year').addEventListener('change', updateResult);
-  el('year').addEventListener('keyup', updateResult);
-  el('month').addEventListener('change', updateResult);
-  el('day').addEventListener('change', updateResult);
+  year = document.createElement('input');
+  year.className = 'year';
+  year.type = 'number';
+  year.pattern = '\\d{4}';
+  year.placeholder = 'YYYY';
+  el.appendChild(year);
   
+  month = document.createElement('select');
+  month.className = 'month';
+  for(let i = 0; i < 12; i++)
+    month.options[i] = new Option(MONTHS[i].substr(0,3), i);
+  el.appendChild(document.createTextNode(' '));
+  el.append(month);
+  
+  day = document.createElement('select');
+  day.className = 'day';
+  for(let i = 0; i < 31; i++)
+    day.options[i] = new Option(i+1);
+  el.appendChild(document.createTextNode(' '));
+  el.append(day);
+  
+  if(d)
+    setDate(d);
+  
+  //set up listeners to change days in drop-down
+  year.addEventListener('change', updateDays);
+  year.addEventListener('keyup', updateDays);
+  month.addEventListener('change', updateDays);
+  
+  year.addEventListener('change', computeDate);
+  year.addEventListener('keyup', computeDate);
+  month.addEventListener('change', computeDate);
+  day.addEventListener('change', computeDate);
+  
+  function setDate(d) {
+    year.value = d.getFullYear();
+    month.value = d.getMonth();
+    updateDays();
+    day.value = d.getDate();
+    computeDate(false);
+  };
+  
+  function computeDate(fireCallback=true) {
+    let oldValue = value;
+    let yearVal = Number(year.value);
+    let monthVal = Number(month.value);
+    let dayVal = Number(day.value);
+    
+    if(isNaN(yearVal) || yearVal < 1000 || yearVal > 9999)
+      value = null;
+    else
+      value = new Date(yearVal, monthVal, dayVal, 12, 0, 0);
+    
+    if(value !== oldValue && fireCallback)
+      doCallback();
+  }
   
   function updateDays() {
-    var year = Number(el('year').value);
-    var month = Number(el('month').value);
-    var day = Number(el('day').value);
+    let yearVal = Number(year.value);
+    let monthVal = Number(month.value);
+    let dayVal = Number(day.value);
     
-    if(isNaN(year) || year < 1000)
+    if(isNaN(yearVal) || yearVal < 1000 || yearVal > 9999)
       return;
     
     //0th day of next month === last day of current month
-    var d = new Date(year, month+1, 0);
-    var numDaysInMonth = new Date(year, month+1, 0).getDate();
-    var elDay = el('day');
+    let numDaysInMonth = new Date(yearVal, monthVal+1, 0).getDate();
     
-    elDay.innerHTML = '';
+    day.innerHTML = '';
     for(var i = 1; i <= numDaysInMonth; i++)
-      elDay.options[elDay.options.length] = new Option(i);
+      day.options[day.options.length] = new Option(i);
     
     //restore previous selection
-    if(!isNaN(day))
-      elDay.value = (day > numDaysInMonth ? numDaysInMonth : day);
+    if(isNaN(dayVal))
+      day.value = 1;
     else
-      elDay.value = 1;
+      day.value = (dayVal > numDaysInMonth ? numDaysInMonth : dayVal);
   }
   
+  //PUBLIC FUNCTIONS
+  this.setValue = function(d) { setDate(d); }
   
-  function updateResult() {
-    var year = Number(el('year').value);
-    var month = Number(el('month').value);
-    var day = Number(el('day').value);
-    if(isNaN(year) || year < 1000)
+  this.getValue = function() {
+    computeDate(false);
+    return value;
+  }
+  
+  this.onChange = function(cb) {
+    onChangeCallback = cb;
+  }
+  
+  this.getEl = function() { return el; }
+};
+
+
+document.addEventListener('DOMContentLoaded', function(event) { 
+  let birthdate = new Birthdate(sel('#birthdate')[0]);
+  let todaydate = new Birthdate(sel('#todaydate')[0], new Date());
+  let halfdate = new Birthdate(sel('#halfdate')[0]);
+  
+  //keep track of last two fields changed
+  let lastChanged = [ todaydate, null ];
+  
+  birthdate.onChange(handleChange);
+  todaydate.onChange(handleChange);
+  halfdate.onChange(handleChange);
+  
+  function handleChange(dte) {
+    if(lastChanged[0] !== dte && lastChanged[1] !== dte) {
+      lastChanged.unshift(dte);
+      lastChanged.pop();
+    }
+    
+    if(lastChanged[0] === null || lastChanged[0].getValue() === null || lastChanged[1] === null || lastChanged[1].getValue() === null)
       return;
     
-    //use noon on birthdate to avoid weird DST issues
-    var birthdate = new Date(year, month, day, 12, 0, 0);
-    var today = new Date();
-    
-    //also use noon today. We shouldn't give a different answer depending on the time of day you run it.
-    today = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
-    
-    var halfALifetimeAgo = new Date(birthdate/2 + today/2);
-    el('result').innerHTML = DAYS[halfALifetimeAgo.getDay()] + ', ' + MONTHS[halfALifetimeAgo.getMonth()] + ' ' + halfALifetimeAgo.getDate() + ', ' + halfALifetimeAgo.getFullYear();
+    lastChanged[0].getEl().classList.remove('changed');
+    lastChanged[1].getEl().classList.remove('changed');
+    if(lastChanged[0] !== birthdate && lastChanged[1] !== birthdate) {
+      //compute birthdate
+      birthdate.setValue(new Date((halfdate.getValue().getTime()*2 - todaydate.getValue().getTime())));
+      birthdate.getEl().classList.add('changed');
+    }
+    else if(lastChanged[0] !== todaydate && lastChanged[1] !== todaydate) {
+      //compute todaydate
+      todaydate.setValue(new Date((halfdate.getValue().getTime()*2 - birthdate.getValue().getTime())));
+      todaydate.getEl().classList.add('changed');
+    }
+    else {
+      //compute halfdate
+      halfdate.setValue(new Date((birthdate.getValue().getTime() + todaydate.getValue().getTime())/2));
+      halfdate.getEl().classList.add('changed');
+    }
   }
-  
 });
 //]]> 
 </script>
@@ -125,59 +221,15 @@ document.addEventListener('DOMContentLoaded', function(event) {
   What you were doing half a liftime ago?<br/>
   Enter your birth date below to find out when that was!
 </div>
-<label for="year">Your Birth Date:</label>
-<div id="controls">
-  <input type="number" id="year" pattern="\d{4}" placeholder="YYYY" />
-  <select id="month">
-    <option value="0">Jan</option>
-    <option value="1">Feb</option>
-    <option value="2">Mar</option>
-    <option value="3">Apr</option>
-    <option value="4">May</option>
-    <option value="5">Jun</option>
-    <option value="6">Jul</option>
-    <option value="7">Aug</option>
-    <option value="8">Sep</option>
-    <option value="9">Oct</option>
-    <option value="10">Nov</option>
-    <option value="11">Dec</option>
-  </select>
-  <select id="day">
-    <option>1</option>
-    <option>2</option>
-    <option>3</option>
-    <option>4</option>
-    <option>5</option>
-    <option>6</option>
-    <option>7</option>
-    <option>8</option>
-    <option>9</option>
-    <option>10</option>
-    <option>11</option>
-    <option>12</option>
-    <option>13</option>
-    <option>14</option>
-    <option>15</option>
-    <option>16</option>
-    <option>17</option>
-    <option>18</option>
-    <option>19</option>
-    <option>20</option>
-    <option>21</option>
-    <option>22</option>
-    <option>23</option>
-    <option>24</option>
-    <option>25</option>
-    <option>26</option>
-    <option>27</option>
-    <option>28</option>
-    <option>29</option>
-    <option>30</option>
-    <option>31</option>
-  </select>
-</div>
-<label for="result>">Half a Lifetime Ago:</label>
-<div id="result"></div>
+<label>If you were born on:</label>
+<div class="birthdate" id="birthdate"></div>
+
+<label>And today is:</label>
+<div class="birthdate" id="todaydate"></div>
+
+<label>Half a lifetime ago is:</label>
+<div class="birthdate" id="halfdate"></div>
+
 <div id="disclaimer">
   Not comfortable putting your birth date in some random website? I don't blame you!<br/>
   You can <a href="//github.com/kiprobinson/halfALifetime">view the code on GitHub</a>.
